@@ -59,6 +59,13 @@ filters:
     - "\\b(ii|iii|iv)\\b"
     - "\\b(2|3|4)\\b"
 
+  # Drop anything posted before this date. The community feeds keep
+  # prior-cycle roles marked active, so without a floor the sheet fills with
+  # 2025 (and older) listings that are long closed. You graduate Dec 2026, so
+  # the relevant wave starts around Aug 2026. Postings with no usable date are
+  # kept rather than dropped.
+  min_date_posted: "2026-06-01"
+
   # Only keep roles that look US based. Location text is matched against these.
   # A bare "Remote" is treated as US, see non_us_location_any below.
   # Set us_only to false to keep everything regardless of location.

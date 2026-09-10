@@ -168,8 +168,26 @@ def location_ok(location, f):
     return "remote" in loc
 
 
+def date_ok(date_posted, f):
+    """Drop postings older than min_date_posted. The community feeds keep
+    prior-cycle roles flagged active, so without this the sheet fills up with
+    last year's listings. An unparseable or missing date is kept, on the
+    theory that a human should judge it rather than lose it silently."""
+    floor = str(f.get("min_date_posted") or "").strip()
+    if not floor:
+        return True
+    d = (date_posted or "").strip()
+    if len(d) < 10 or not d[:4].isdigit():
+        return True
+    return d[:10] >= floor
+
+
 def keep(job, f):
-    return title_ok(job["title"], f) and location_ok(job["location"], f)
+    return (
+        title_ok(job["title"], f)
+        and location_ok(job["location"], f)
+        and date_ok(job.get("date_posted"), f)
+    )
 
 
 # ----------------------------------------------------------------------------
@@ -326,17 +344,28 @@ def open_worksheet(cfg):
 
     ss = gc.open_by_key(sheet_id)
     ws_name = cfg["sheet"]["worksheet"]
+    created = False
     try:
         ws = ss.worksheet(ws_name)
     except gspread.WorksheetNotFound:
         ws = ss.add_worksheet(title=ws_name, rows=2000, cols=len(COLUMNS))
-        ws.append_row(COLUMNS, value_input_option="RAW")
-        log(f"  created worksheet '{ws_name}' with header row")
-    # ensure a header exists
-    first = ws.row_values(1)
-    if [c.lower() for c in first] != COLUMNS:
-        if not first:
-            ws.append_row(COLUMNS, value_input_option="RAW")
+        created = True
+
+    # Write the header straight to A1 rather than appending it. append_row
+    # picks its target from the API's idea of where the table ends, which on a
+    # freshly created sheet can be stale, and a header that lands below the
+    # data is worse than no header at all.
+    header = ws.row_values(1)
+    if [c.strip().lower() for c in header] != COLUMNS:
+        if header:
+            # Row 1 holds something else (data, or a partial header). Push a
+            # correct header above it instead of overwriting a real row.
+            ws.insert_row(COLUMNS, index=1, value_input_option="RAW")
+            log(f"  worksheet '{ws_name}' was missing its header row, inserted one")
+        else:
+            ws.update(range_name="A1", values=[COLUMNS], value_input_option="RAW")
+            if created:
+                log(f"  created worksheet '{ws_name}' with header row")
     return ws
 
 
