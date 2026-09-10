@@ -88,7 +88,7 @@ def ts_to_date(value):
         n = float(value)
         if n > 1e12:      # milliseconds
             n = n / 1000.0
-        return dt.datetime.utcfromtimestamp(n).strftime("%Y-%m-%d")
+        return dt.datetime.fromtimestamp(n, dt.timezone.utc).strftime("%Y-%m-%d")
     except (ValueError, TypeError):
         pass
     s = str(value)

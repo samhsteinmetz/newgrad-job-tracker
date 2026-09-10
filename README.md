@@ -70,6 +70,27 @@ export $(grep -v '^#' .env | xargs)
 python main.py
 ```
 
+## Live setup (already configured)
+- Sheet: **New Grad Job Tracker 2027**, shared with the service account
+  `jobtracker@newgrad-tracker-2026.iam.gserviceaccount.com` as Editor.
+- GCP project `newgrad-tracker-2026`, Sheets + Drive APIs enabled. The JSON
+  key also lives at `~/.config/newgrad-job-tracker/service-account.json`.
+- Secrets `SHEET_ID` and `GOOGLE_SERVICE_ACCOUNT_JSON` are set. Adzuna is not
+  configured yet, so that layer is skipped on every run.
+
+## Location filtering, and why it is fussy
+Two rules that are easy to break if you edit `us_location_hints`:
+- **Do not add "remote" as a US hint.** It makes "Remote in UK" look US based.
+  A bare "Remote" is already treated as US by `location_ok`, but only when no
+  `non_us_location_any` marker is present.
+- **Do not add the state codes `in`, `or`, `me`, `hi`, `de`, `la`, `ok`.**
+  They are ordinary English words and will match foreign location strings.
+  Add the city name instead, which is what the existing list does.
+
+Foreign markers match on word boundaries, so `india` does not swallow
+`Indianapolis`. US markers are checked first, so a multi-office role like
+"Toronto, ON, Canada, Dallas, TX" is kept.
+
 ## Tuning it (edit config.yaml, not the code)
 - **Add companies**: drop a Greenhouse token or Lever site into the lists. Find
   the token from the careers URL, for example `boards.greenhouse.io/COMPANY`.
