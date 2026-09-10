@@ -6,8 +6,7 @@ from community GitHub feeds, company career boards, and a jobs API, filters out
 internships and senior roles, and adds only jobs that are not already in your
 sheet. Nothing is ever deleted or overwritten, so your own notes stay put.
 
-It runs itself on GitHub Actions every Monday and Thursday morning.
-No server to babysit.
+It runs itself on GitHub Actions every 6 hours. No server to babysit.
 
 ## How it works
 
@@ -96,8 +95,8 @@ Foreign markers match on word boundaries, so `india` does not swallow
 - **Add companies**: drop a Greenhouse token or Lever site into the lists. Find
   the token from the careers URL, for example `boards.greenhouse.io/COMPANY`.
 - **Change how often it runs**: edit the `cron` line in
-  `.github/workflows/update.yml`. It currently runs Monday and Thursday at
-  12:00 UTC (8am Eastern); alternatives are listed in a comment there.
+  `.github/workflows/update.yml`. `0 */6 * * *` is every 6 hours. Going less
+  often risks missing roles outright, see the comment there.
 - **Widen or narrow roles**: edit the `include_title_any` and
   `exclude_title_any` lists in `config.yaml`.
 - **Tighten Adzuna freshness**: `max_days_old` controls how far back it looks.

@@ -2,13 +2,13 @@ name: Update job tracker
 
 on:
   schedule:
-    # Monday and Thursday at 12:00 UTC = 8am Eastern Daylight Time, 7am once
-    # clocks change in November. GitHub cron is always UTC, so the local time
-    # shifts by an hour twice a year. Roughly every 3 to 4 days.
-    #   every 3 days instead:  "0 12 */3 * *"
-    #   daily:                 "0 12 * * *"
-    #   back to every 6 hours: "0 */6 * * *"
-    - cron: "0 12 * * 1,4"
+    # Every 6 hours (UTC). Deliberately frequent: the community feeds drop a
+    # role once it is marked inactive, so a posting that opens and closes
+    # between two runs is missed permanently, not just delayed. New grad
+    # roles regularly close within days on application caps.
+    #   daily instead:  "0 12 * * *"
+    #   twice a week:   "0 12 * * 1,4"
+    - cron: "0 */6 * * *"
   workflow_dispatch:        # lets you run it manually from the Actions tab
 
 # Prevent overlapping runs from writing to the sheet at the same time.
