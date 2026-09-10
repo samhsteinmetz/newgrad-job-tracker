@@ -4,7 +4,7 @@ Goal: a Google Sheet that stays continuously current with US new grad software
 engineering, tech consulting, and rotational program roles, with no duplicates
 and no internships, and that adds new postings automatically as they appear.
 
-You graduate December 2026, so the roles that matter are the ones labelled
+For a December 2026 graduate the roles that matter are the ones labelled
 "2026 new grad", "2027 new grad", or "class of 2027", which open in waves from
 roughly August 2026 through spring 2027. The timing is good: the fall wave is
 opening right now.

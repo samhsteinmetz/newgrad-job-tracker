@@ -1,124 +1,109 @@
 # New grad job tracker
 
-A pipeline that keeps a Google Sheet continuously topped up with US new grad
-software engineering, tech consulting, and rotational program roles. It pulls
-from community GitHub feeds, company career boards, and a jobs API, filters out
-internships and senior roles, and adds only jobs that are not already in your
-sheet. Nothing is ever deleted or overwritten, so your own notes stay put.
+Keeps a Google Sheet topped up with US new grad software engineering, tech
+consulting and rotational roles. Pulls from community GitHub feeds, company
+career boards and a jobs API, drops internships and senior roles, and appends
+only jobs the sheet has not seen. Existing rows are never edited, so your notes
+survive every run.
 
-It runs itself on GitHub Actions every 6 hours. No server to babysit.
+Runs itself on GitHub Actions every 6 hours. No server.
 
-## How it works
+Hunting in a different field? See **[ADAPTING.md](ADAPTING.md)**.
 
 ```
-  GitHub new grad feeds  \
-  Greenhouse boards       >  normalize  ->  filter          ->  dedupe          ->  append new rows
-  Lever boards           /                 (US, new grad,       (against keys        to your sheet
-  Adzuna keyword API    /                   no internships)      already in sheet)
+GitHub new grad feeds \
+Greenhouse boards      >  normalize -> filter -> dedupe -> append new rows
+Lever boards          /   (US, new grad, no interns, posted this cycle)
+Adzuna keyword API   /
 ```
 
-The sheet is the single source of truth for what you have already seen. Each
-row carries a hidden `key` (a cleaned version of the job URL). A job whose key
-is already present is skipped, so the same posting reached through three
-different links still lands once.
+The sheet is the source of truth for dedup: each row carries a hidden `key`
+(the cleaned job URL), and a job whose key is already present is skipped. The
+same posting reached through three links lands once.
 
-## One time setup (about 15 minutes)
+## Setup (~15 min)
 
-### 1. Make the Google Sheet
-Create a blank Google Sheet. From its URL, copy the id (the long string between
-`/d/` and `/edit`). That is your `SHEET_ID`.
+**1. Sheet.** Create a blank Google Sheet. Its id is the long string between
+`/d/` and `/edit` in the URL.
 
-### 2. Create a Google service account
-This is a robot Google account the script logs in as. No OAuth popups.
+**2. Service account.** A robot Google account, no OAuth popups.
+1. At [console.cloud.google.com](https://console.cloud.google.com/), create a
+   project and enable the **Google Sheets API**.
+2. **Credentials > Create credentials > Service account**, then **Keys > Add
+   key > JSON**. Keep the downloaded file safe.
+3. Copy `client_email` from that file and share your sheet with it as
+   **Editor**.
 
-1. Go to https://console.cloud.google.com/ and create a project (any name).
-2. In "APIs and Services > Library", enable the **Google Sheets API**.
-3. In "APIs and Services > Credentials", click **Create credentials >
-   Service account**. Name it, click through, done.
-4. Open the new service account, go to the **Keys** tab, **Add key > Create
-   new key > JSON**. A `.json` file downloads. Keep it safe.
-5. Open that JSON file, find the `client_email` value (looks like
-   `something@project.iam.gserviceaccount.com`).
-6. Back in your Google Sheet, click **Share** and share it with that
-   `client_email` as an **Editor**.
+**3. GitHub.** Push to a repo, then add under **Settings > Secrets and
+variables > Actions**:
 
-### 3. Put it on GitHub
-1. Create a new **private** GitHub repo and upload these files.
-2. In the repo, go to **Settings > Secrets and variables > Actions > New
-   repository secret** and add:
-   - `SHEET_ID` = your sheet id
-   - `GOOGLE_SERVICE_ACCOUNT_JSON` = the entire contents of the JSON key file
-     (open it, select all, paste)
-   - `ADZUNA_APP_ID` and `ADZUNA_APP_KEY` = optional, see below
+| Secret | Value |
+| --- | --- |
+| `SHEET_ID` | the sheet id from step 1 |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | entire contents of the JSON key file |
+| `ADZUNA_APP_ID` / `ADZUNA_APP_KEY` | optional, see below |
 
-### 4. (Optional but recommended) Adzuna key
-Adzuna is what catches the big consulting and rotational employers (Deloitte,
-Accenture, EY, Capital One, and similar) that do not publish a clean board API.
-Get a free key at https://developer.adzuna.com/, then add the two secrets above.
-Leave them empty and the pipeline just skips Adzuna.
+**4. Adzuna (optional).** Free key at
+[developer.adzuna.com](https://developer.adzuna.com/). Catches the big
+consulting and rotational employers (Deloitte, Accenture, EY, Capital One TDP)
+that have no clean board API. Leave the secrets empty to skip it.
 
-### 5. Run it
-Go to the **Actions** tab, pick **Update job tracker**, click **Run workflow**.
-Watch the log. On the first run it fills the sheet; after that it adds only new
-jobs. From then on it runs on its own every 6 hours.
+**5. Run.** Actions tab > **Update job tracker** > **Run workflow**. The first
+run fills the sheet; after that it adds only what is new.
 
-## Running locally to test
+## Local testing
 ```bash
 pip install -r requirements.txt
-cp .env.example .env          # fill in the values
+cp .env.example .env      # fill in
 export $(grep -v '^#' .env | xargs)
 python main.py
 ```
 
-## Live setup (already configured)
-- Sheet: **New Grad Job Tracker 2027**, shared with the service account
-  `jobtracker@newgrad-tracker-2026.iam.gserviceaccount.com` as Editor.
-- GCP project `newgrad-tracker-2026`, Sheets + Drive APIs enabled. The JSON
-  key also lives at `~/.config/newgrad-job-tracker/service-account.json`.
-- Secrets `SHEET_ID` and `GOOGLE_SERVICE_ACCOUNT_JSON` are set. Adzuna is not
-  configured yet, so that layer is skipped on every run.
-
-## Location filtering, and why it is fussy
-Two rules that are easy to break if you edit `us_location_hints`:
-- **Do not add "remote" as a US hint.** It makes "Remote in UK" look US based.
-  A bare "Remote" is already treated as US by `location_ok`, but only when no
-  `non_us_location_any` marker is present.
-- **Do not add the state codes `in`, `or`, `me`, `hi`, `de`, `la`, `ok`.**
-  They are ordinary English words and will match foreign location strings.
-  Add the city name instead, which is what the existing list does.
-
-Foreign markers match on word boundaries, so `india` does not swallow
-`Indianapolis`. US markers are checked first, so a multi-office role like
-"Toronto, ON, Canada, Dallas, TX" is kept.
-
-## Tuning it (edit config.yaml, not the code)
-- **Add companies**: drop a Greenhouse token or Lever site into the lists. Find
-  the token from the careers URL, for example `boards.greenhouse.io/COMPANY`.
-- **Change how often it runs**: edit the `cron` line in
-  `.github/workflows/update.yml`. `0 */6 * * *` is every 6 hours. Going less
-  often risks missing roles outright, see the comment there.
-- **Widen or narrow roles**: edit the `include_title_any` and
-  `exclude_title_any` lists in `config.yaml`.
-- **Tighten Adzuna freshness**: `max_days_old` controls how far back it looks.
-
-## Styling the sheet
-`format_sheet.py` applies the header bar, column widths, zebra striping, the
-Status dropdown and the colour rules. Formatting lives on the sheet rather
-than in the rows, so jobs appended later pick it up automatically. Rerun it
-only if you change the colours or the status list:
+## Styling
+`format_sheet.py` applies the header bar, widths, striping, hidden `key`
+column, Status dropdown and per-status row colours. Formatting lives on the
+sheet, so new rows inherit it. Rerun only when changing colours or the status
+list; it clears its own previous rules first, so nothing stacks up.
 
 ```bash
 export $(grep -v '^#' .env | xargs)   &&   python format_sheet.py
 ```
 
-It is safe to run repeatedly: it removes the banding and colour rules it added
-last time before reapplying them, so rules never stack up.
+Rows sort newest first after each update, moving as a unit so a Status stays
+attached to its job.
 
-Rows are sorted newest posting first after every update, and a whole row moves
-as a unit, so a Status you typed stays attached to its job. The `key` column is
-hidden; unhide column J if you ever need to inspect it.
+## Tuning (edit `config.yaml`, not the code)
+- **Companies**: add a Greenhouse token or Lever site. From the careers URL,
+  `boards.greenhouse.io/COMPANY` means the token is `COMPANY`. Tokens rotate;
+  a dead one is skipped, not fatal.
+- **Frequency**: the `cron` in `.github/workflows/update.yml`. Running less
+  often risks missing roles outright, since feeds drop a posting once it
+  closes.
+- **Roles**: `include_title_any` / `exclude_title_any`.
+- **Freshness**: `min_date_posted` drops prior-cycle listings; Adzuna's
+  `max_days_old` controls its own lookback.
+
+### Two location traps
+- **Never add `remote` to `us_location_hints`** — it makes "Remote in UK" look
+  US based. A bare "Remote" is already treated as US when no
+  `non_us_location_any` marker is present.
+- **Never add state codes `in`, `or`, `me`, `hi`, `de`, `la`, `ok`** — they are
+  English words that match foreign strings. Add the city name instead.
+
+Foreign markers match whole words, so `india` cannot swallow `Indianapolis`. US
+markers are checked first, so "Toronto, ON, Canada, Dallas, TX" is kept.
 
 ## Your columns
-`status` is yours. Put `Applied`, `Interested`, or `Skip` there. The pipeline
-never touches rows that already exist, so your status survives every run. Sort
-or filter the sheet by `first_seen` to see what showed up today.
+`Status` is yours (dropdown: Interested, Applied, Interviewing, Offer,
+Rejected, Skip). Filter `First Seen` by today to triage only what is new;
+today's untouched rows are highlighted.
+
+## Limits
+- Community feeds are volunteer curated, so a new posting can lag a few hours.
+  Company boards shorten that for employers you list explicitly.
+- Adzuna is only as clean as the aggregators it indexes; the title filters do
+  real work there.
+- Closed roles are not re-checked. A closed job stops reappearing but stays in
+  your sheet, which is what protects your notes.
+- GitHub disables scheduled workflows after **60 days without a commit**. Push
+  something occasionally or the tracker quietly stops.
