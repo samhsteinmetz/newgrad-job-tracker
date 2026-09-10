@@ -37,6 +37,27 @@ COLUMNS = [
     "source", "date_posted", "first_seen", "url", "key",
 ]
 
+# What the header row actually displays. These are only labels: every check
+# normalizes them back to COLUMNS, so renaming one here does not move a
+# column or break dedup. Keep the order identical to COLUMNS.
+HEADER_LABELS = [
+    "Status", "Company", "Role", "Location", "Category",
+    "Source", "Posted", "First Seen", "Link", "key",
+]
+
+
+def normalize_header(cells):
+    """'Date Posted' -> 'date_posted', so a prettied up header still matches."""
+    return [re.sub(r"\s+", "_", (c or "").strip().lower()) for c in cells]
+
+
+def header_is_valid(cells):
+    """True for the current display labels and for the older all lowercase
+    header, so a sheet written by an earlier version is left alone instead of
+    having a second header inserted above it."""
+    seen = normalize_header(cells)
+    return seen in (COLUMNS, normalize_header(HEADER_LABELS))
+
 USER_AGENT = "newgrad-job-tracker/1.0 (personal job search)"
 TIMEOUT = 30
 
@@ -356,17 +377,31 @@ def open_worksheet(cfg):
     # freshly created sheet can be stale, and a header that lands below the
     # data is worse than no header at all.
     header = ws.row_values(1)
-    if [c.strip().lower() for c in header] != COLUMNS:
+    if not header_is_valid(header):
         if header:
             # Row 1 holds something else (data, or a partial header). Push a
             # correct header above it instead of overwriting a real row.
-            ws.insert_row(COLUMNS, index=1, value_input_option="RAW")
+            ws.insert_row(HEADER_LABELS, index=1, value_input_option="RAW")
             log(f"  worksheet '{ws_name}' was missing its header row, inserted one")
         else:
-            ws.update(range_name="A1", values=[COLUMNS], value_input_option="RAW")
+            ws.update(range_name="A1", values=[HEADER_LABELS], value_input_option="RAW")
             if created:
                 log(f"  created worksheet '{ws_name}' with header row")
     return ws
+
+
+def sort_by_date_desc(ws):
+    """Sort the data rows (never the header) newest posting first."""
+    last_row = len(ws.col_values(COLUMNS.index("key") + 1))
+    if last_row < 3:          # header plus at most one row, nothing to sort
+        return
+    date_col = COLUMNS.index("date_posted") + 1
+    last_col = chr(ord("A") + len(COLUMNS) - 1)
+    try:
+        ws.sort((date_col, "des"), range=f"A2:{last_col}{last_row}")
+        log(f"  sorted rows 2..{last_row} by date_posted, newest first")
+    except Exception as e:
+        log(f"  could not sort sheet (rows are still correct): {e}")
 
 
 def existing_keys(ws):
@@ -433,9 +468,16 @@ def main():
         new_rows.append([row[c] for c in COLUMNS])
 
     if new_rows:
-        # newest first is nicer at the top, but appending keeps history stable
         ws.append_rows(new_rows, value_input_option="RAW")
     log(f"NEW jobs added to sheet: {len(new_rows)}")
+
+    # Keep the newest postings at the top. Rows move as a unit, so a status
+    # you typed stays attached to its job. date_posted is YYYY-MM-DD, so a
+    # plain text sort is already chronological; blank dates sink to the
+    # bottom, which is where unknowns belong.
+    if new_rows:
+        sort_by_date_desc(ws)
+
     print(f"::notice::Added {len(new_rows)} new jobs")
 
 

@@ -101,6 +101,23 @@ Foreign markers match on word boundaries, so `india` does not swallow
   `exclude_title_any` lists in `config.yaml`.
 - **Tighten Adzuna freshness**: `max_days_old` controls how far back it looks.
 
+## Styling the sheet
+`format_sheet.py` applies the header bar, column widths, zebra striping, the
+Status dropdown and the colour rules. Formatting lives on the sheet rather
+than in the rows, so jobs appended later pick it up automatically. Rerun it
+only if you change the colours or the status list:
+
+```bash
+export $(grep -v '^#' .env | xargs)   &&   python format_sheet.py
+```
+
+It is safe to run repeatedly: it removes the banding and colour rules it added
+last time before reapplying them, so rules never stack up.
+
+Rows are sorted newest posting first after every update, and a whole row moves
+as a unit, so a Status you typed stays attached to its job. The `key` column is
+hidden; unhide column J if you ever need to inspect it.
+
 ## Your columns
 `status` is yours. Put `Applied`, `Interested`, or `Skip` there. The pipeline
 never touches rows that already exist, so your status survives every run. Sort
