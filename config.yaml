@@ -1,0 +1,263 @@
+# ============================================================================
+# Job tracker configuration
+# Everything the pipeline pulls from lives here. Edit this file, not the code.
+# ============================================================================
+
+# --- Google Sheet -----------------------------------------------------------
+sheet:
+  # The tab (worksheet) name inside your spreadsheet that jobs get written to.
+  worksheet: "Jobs"
+
+# --- Filters (applied to every source) --------------------------------------
+filters:
+  # A title must look like a new grad / entry level full time role.
+  # Matched case insensitively as a whole word or phrase.
+  include_title_any:
+    - "new grad"
+    - "new graduate"
+    - "entry level"
+    - "entry-level"
+    - "university grad"
+    - "college grad"
+    - "campus"
+    - "early career"
+    - "associate software engineer"
+    - "software engineer i"
+    - "software engineer 1"
+    - "graduate software"
+    - "graduate engineer"
+    - "rotational"
+    - "development program"
+    - "leadership program"
+    - "technology analyst"
+    - "technology consultant"
+    - "2026 grad"
+    - "2027 grad"
+    - "class of 2026"
+    - "class of 2027"
+
+  # If a title contains any of these it is dropped, no matter what.
+  # This kills internships and anything too senior.
+  exclude_title_any:
+    - "intern"
+    - "internship"
+    - "co-op"
+    - "coop"
+    - "senior"
+    - "staff"
+    - "principal"
+    - "lead "
+    - "manager"
+    - "director"
+    - "vp "
+    - "head of"
+    - "phd"
+
+  # Dropped when matched as a whole word (so a level "II" or "2" is excluded,
+  # but a year like "2027" or a word like "Hawaii" is left alone).
+  exclude_title_regex:
+    - "\\b(ii|iii|iv)\\b"
+    - "\\b(2|3|4)\\b"
+
+  # Only keep roles that look US based. Location text is matched against these.
+  # A bare "Remote" is treated as US, see non_us_location_any below.
+  # Set us_only to false to keep everything regardless of location.
+  us_only: true
+  us_location_hints:
+    - "united states"
+    - "usa"
+    - "u.s."
+    - "new york"
+    - "san francisco"
+    - "seattle"
+    - "austin"
+    - "boston"
+    - "chicago"
+    - "atlanta"
+    - "los angeles"
+    - "denver"
+    - "dallas"
+    - "washington"
+    - "mclean"
+    - "virginia"
+    - "california"
+    - "texas"
+    - "ca"
+    - "ny"
+    - "wa"
+    - "tx"
+    - "ma"
+    - "il"
+    - "ga"
+    - "co"
+    - "va"
+    - "nj"
+    - "pa"
+    - "az"
+    - "nc"
+    - "fl"
+    # More US metros. Two letter codes for these states are deliberately NOT
+    # listed: "in", "or", "me", "hi", "de", "la" and "ok" are ordinary English
+    # words and would match foreign strings like "Remote in UK".
+    - "indianapolis"
+    - "columbus"
+    - "detroit"
+    - "minneapolis"
+    - "portland"
+    - "salt lake"
+    - "nashville"
+    - "st. louis"
+    - "st louis"
+    - "milwaukee"
+    - "baltimore"
+    - "charlotte"
+    - "raleigh"
+    - "durham"
+    - "kansas city"
+    - "omaha"
+    - "las vegas"
+    - "phoenix"
+    - "tempe"
+    - "san diego"
+    - "san jose"
+    - "palo alto"
+    - "santa clara"
+    - "sunnyvale"
+    - "mountain view"
+    - "philadelphia"
+    - "pittsburgh"
+    - "miami"
+    - "orlando"
+    - "tampa"
+    - "houston"
+    - "san antonio"
+    - "sacramento"
+    - "cincinnati"
+    - "cleveland"
+    - "arlington"
+    - "reston"
+    - "bellevue"
+    - "redmond"
+    - "irvine"
+    - "long beach"
+    - "boulder"
+    - "ann arbor"
+    - "madison"
+    - "pennsylvania"
+    - "michigan"
+    - "ohio"
+    - "florida"
+    - "georgia"
+    - "illinois"
+    - "massachusetts"
+    - "colorado"
+    - "arizona"
+    - "oregon"
+    - "utah"
+    - "minnesota"
+    - "indiana"
+
+  # Checked only when no US marker was found. This is what stops an
+  # explicitly foreign remote role ("Remote in UK") from being treated as a
+  # US remote role. A posting listing both a foreign and a US office still
+  # passes, because the US marker is checked first.
+  non_us_location_any:
+    - "canada"
+    - "toronto"
+    - "vancouver"
+    - "montreal"
+    - "united kingdom"
+    - "uk"
+    - "london"
+    - "ireland"
+    - "dublin"
+    - "germany"
+    - "berlin"
+    - "netherlands"
+    - "amsterdam"
+    - "france"
+    - "paris"
+    - "india"
+    - "bangalore"
+    - "bengaluru"
+    - "hyderabad"
+    - "singapore"
+    - "australia"
+    - "sydney"
+    - "japan"
+    - "tokyo"
+    - "china"
+    - "beijing"
+    - "shanghai"
+    - "israel"
+    - "tel aviv"
+    - "brazil"
+    - "mexico"
+    - "poland"
+    - "spain"
+    - "sweden"
+    - "switzerland"
+    - "zurich"
+
+# --- Source 1: community GitHub feeds (the highest signal, already deduped) --
+# These publish a listings.json that many people maintain. Free, no key.
+github_feeds:
+  - name: "Simplify New-Grad"
+    url: "https://raw.githubusercontent.com/SimplifyJobs/New-Grad-Positions/dev/.github/scripts/listings.json"
+  - name: "vanshb03 New-Grad-2027"
+    url: "https://raw.githubusercontent.com/vanshb03/New-Grad-2027/dev/.github/scripts/listings.json"
+
+# --- Source 2: company ATS boards (free public JSON, no key) -----------------
+# Add any company you care about. Find the token from the company careers URL:
+#   Greenhouse: boards.greenhouse.io/COMPANY  ->  token is COMPANY
+#   Lever:      jobs.lever.co/COMPANY         ->  site   is COMPANY
+# The samples below are common new grad heavy employers. Verify each token,
+# some rotate. A bad token just gets skipped, it will not break the run.
+# Verified working as of 2026-09-10.
+greenhouse_boards:
+  - stripe
+  - databricks
+  - robinhood
+  - coinbase
+  - discord
+  - flexport
+  - samsara
+  - gusto
+  - brex          # moved here from Lever
+  - attentive     # moved here from Lever
+  - figma
+  - airbnb
+  - instacart
+  - reddit
+  - scaleai
+  - anthropic
+
+lever_boards:
+  - palantir
+  - spotify
+
+# Removed because their boards now 404 on both APIs. Ramp, Notion, OpenAI,
+# Anduril, Plaid, DoorDash and Netflix have moved to Ashby or an in-house
+# board. Adding an Ashby fetcher would bring them back:
+#   https://api.ashbyhq.com/posting-api/job-board/{token}
+
+# --- Source 3: Adzuna keyword API (free key, best for consulting + rotational)
+# This is how you catch Deloitte, Accenture, EY, PwC, KPMG, Capital One TDP and
+# other big employers that do not expose a clean board API. Get a free
+# app_id + app_key at https://developer.adzuna.com/ and add them as GitHub
+# secrets ADZUNA_APP_ID and ADZUNA_APP_KEY. Leave secrets empty to skip Adzuna.
+adzuna:
+  country: "us"
+  max_days_old: 7          # only postings from the last N days, keeps it fresh
+  results_per_page: 50
+  pages_per_query: 2       # 50 * 2 = up to 100 results per query
+  queries:
+    - "software engineer new grad"
+    - "new grad software engineer"
+    - "entry level software engineer"
+    - "software engineer university graduate"
+    - "technology analyst program"
+    - "technology development program"
+    - "rotational program software"
+    - "technology consulting analyst new grad"
+    - "associate software engineer"
